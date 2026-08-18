@@ -1,0 +1,50 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title><%= storeName %></title>
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="/"><span>V</span><div><b>VEELORD</b><small>COLLECTION & GIFT STORE</small></div></a>
+  <a class="admin-link" href="/admin/login">Admin</a>
+</header>
+
+<section class="hero">
+  <div>
+    <p class="eyebrow">LUXURY • STYLE • GIFTS</p>
+    <h1>Elevate your style.<br><em>Shop with confidence.</em></h1>
+    <p>Discover carefully selected watches, handbags, footwear, jewellery and gifts. Order directly through WhatsApp.</p>
+    <a href="#shop" class="gold-btn">Explore Collection</a>
+  </div>
+</section>
+
+<section class="categories" id="shop">
+  <a class="<%= !activeCategory ? 'active' : '' %>" href="/">All</a>
+  <% categories.forEach(c => { %><a class="<%= activeCategory===c ? 'active' : '' %>" href="/?category=<%= encodeURIComponent(c) %>"><%= c %></a><% }) %>
+</section>
+
+<form class="search" method="get">
+  <input name="q" value="<%= q %>" placeholder="Search products...">
+  <button>Search</button>
+</form>
+
+<main class="grid">
+<% products.forEach(p => { %>
+  <article class="card">
+    <div class="pic"><img src="<%= p.image %>" alt="<%= p.name %>"></div>
+    <div class="info">
+      <span class="tag"><%= p.category %></span>
+      <h3><%= p.name %></h3>
+      <% if (p.description) { %><p><%= p.description %></p><% } %>
+      <div class="row"><strong>₦<%= Number(p.price).toLocaleString() %></strong><a class="wa" href="<%= p.wa %>" target="_blank">Order on WhatsApp</a></div>
+    </div>
+  </article>
+<% }) %>
+<% if (!products.length) { %><div class="empty">No products found yet.</div><% } %>
+</main>
+
+<footer><b>VEELORD</b><span>Luxury made simple.</span><a href="https://wa.me/2349130051086" target="_blank">Chat on WhatsApp</a></footer>
+</body></html>

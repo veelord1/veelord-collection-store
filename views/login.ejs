@@ -1,0 +1,4 @@
+
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Login</title><link rel="stylesheet" href="/styles.css"></head>
+<body class="login-page"><div class="login-box"><div class="logo-mark">V</div><h1>Admin Login</h1><p><%= storeName %></p><% if(error){%><div class="error"><%= error %></div><%}%>
+<form method="post"><label>Username<input name="username" required></label><label>Password<input name="password" type="password" required></label><button class="gold-btn" type="submit">Sign in</button></form><a href="/">← Back to store</a></div></body></html>

@@ -1,0 +1,28 @@
+
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin — <%= storeName %></title><link rel="stylesheet" href="/styles.css"></head>
+<body class="admin-page">
+<header class="admin-nav"><a class="brand" href="/"><span>V</span><div><b>VEELORD</b><small>ADMIN DASHBOARD</small></div></a><div><a href="/" class="view">View store</a><form method="post" action="/admin/logout" class="inline"><button>Logout</button></form></div></header>
+<main class="admin-wrap">
+<section class="admin-head"><div><p class="eyebrow">STORE MANAGEMENT</p><h1>Your products</h1><p>Add, edit or remove products. Customers order through WhatsApp.</p></div></section>
+<section class="panel">
+<h2>Add product</h2>
+<form class="product-form" action="/admin/products" method="post" enctype="multipart/form-data">
+<label>Product name<input name="name" placeholder="e.g. Luxury Gold Watch" required></label>
+<label>Category<input name="category" list="cats" placeholder="Watches" required></label>
+<datalist id="cats"><% categories.forEach(c=>{%><option value="<%=c%>"><%})%></datalist>
+<label>Price (₦)<input name="price" type="number" min="0" placeholder="50000" required></label>
+<label class="wide">Description<textarea name="description" placeholder="Short product description"></textarea></label>
+<label class="wide">Product image<input name="image" type="file" accept="image/*" required></label>
+<button class="gold-btn" type="submit">Add product</button>
+</form>
+</section>
+<section class="panel"><h2>Current catalogue (<%= products.length %>)</h2>
+<div class="admin-products">
+<% products.forEach(p=>{%>
+<div class="admin-card"><img src="<%=p.image%>"><div class="admin-info"><strong><%=p.name%></strong><small><%=p.category%> · ₦<%=Number(p.price).toLocaleString()%></small>
+<details><summary>Edit</summary><form action="/admin/products/<%=p.id%>/edit" method="post" enctype="multipart/form-data">
+<input name="name" value="<%=p.name%>" required><input name="category" value="<%=p.category%>" required><input name="price" type="number" value="<%=p.price%>" required><textarea name="description"><%=p.description%></textarea><input name="image" type="file" accept="image/*"><button class="gold-btn">Save changes</button></form></details>
+<form action="/admin/products/<%=p.id%>/delete" method="post" onsubmit="return confirm('Delete this product?')"><button class="danger">Delete</button></form>
+</div></div>
+<%})%></div></section>
+</main></body></html>
