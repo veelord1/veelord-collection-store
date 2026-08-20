@@ -147,7 +147,8 @@ app.get("/", async (req, res, next) => {
         wa: waLink(p)
       })),
       categories,
-      activeCategory: category
+      activeCategory: category,
+    q: q
     });
 
   } catch (err) {
