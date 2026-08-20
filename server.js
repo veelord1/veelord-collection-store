@@ -227,19 +227,60 @@ app.post("/admin/products", auth, upload.single("image"), async (req, res, next)
     next(err);
   }
 });
-app.post("/admin/products/:id/edit", auth, upload.single("image"), (req, res) => {
-  const old = db.prepare("SELECT * FROM products WHERE id=?").get(req.params.id);
-  if (!old) return res.status(404).send("Product not found.");
-  const image = req.file ? "/uploads/" + req.file.filename : old.image;
-  db.prepare("UPDATE products SET name=?,category=?,price=?,description=?,image=? WHERE id=?")
-    .run(req.body.name, req.body.category, Number(req.body.price || 0), req.body.description || "", image, req.params.id);
-  if (req.file && old.image.startsWith("/uploads/")) {
-    const oldPath = path.join(__dirname, "public", old.image);
-    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-  }
-  res.redirect("/admin");
-});
+app.post("/admin/products/:id/edit", auth, upload.single("image"), async (req, res, next) => {
+  try {
+    const old = db
+      .prepare("SELECT * FROM products WHERE id=?")
+      .get(req.params.id);
 
+    if (!old) {
+      return res.status(404).send("Product not found.");
+    }
+
+    let imageUrl = old.image;
+
+    if (req.file) {
+      const fileBuffer = fs.readFileSync(req.file.path);
+      const fileName = `${Date.now()}-${req.file.filename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("product-images")
+        .upload(fileName, fileBuffer, {
+          contentType: req.file.mimetype,
+          upsert: false
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from("product-images")
+        .getPublicUrl(fileName);
+
+      imageUrl = publicUrlData.publicUrl;
+
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+    }
+
+    db.prepare(
+      "UPDATE products SET name=?, category=?, price=?, description=?, image=? WHERE id=?"
+    ).run(
+      req.body.name,
+      req.body.category,
+      Number(req.body.price || 0),
+      req.body.description || "",
+      imageUrl,
+      req.params.id
+    );
+
+    res.redirect("/admin");
+  } catch (err) {
+    next(err);
+  }
+});
 app.post("/admin/products/:id/delete", auth, (req, res) => {
   const p = db.prepare("SELECT * FROM products WHERE id=?").get(req.params.id);
   if (p) {
