@@ -27,20 +27,6 @@ fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const db = new Database(path.join(dataDir, "store.db"));
-db.prepare(`
-  UPDATE products
-  SET category = CASE LOWER(TRIM(category))
-    WHEN 'watches' THEN 'Watches'
-    WHEN 'flowers' THEN 'Flowers'
-    WHEN 'handbags' THEN 'Handbags'
-    WHEN 'shoes' THEN 'Shoes'
-    WHEN 'clothes' THEN 'Clothes'
-    WHEN 'jewellery' THEN 'Jewellery'
-    WHEN 'jewelry' THEN 'Jewellery'
-    WHEN 'gifts' THEN 'Gifts'
-    ELSE TRIM(category)
-  END
-`).run();
 db.pragma("journal_mode = WAL");
 db.exec(`
 CREATE TABLE IF NOT EXISTS products (
@@ -57,7 +43,21 @@ CREATE TABLE IF NOT EXISTS admins (
   username TEXT UNIQUE NOT NULL,
   password_hash TEXT NOT NULL
 );
-`);
+`);db.prepare(`
+  UPDATE products
+  SET category = CASE LOWER(TRIM(category))
+    WHEN 'watches' THEN 'Watches'
+    WHEN 'flowers' THEN 'Flowers'
+    WHEN 'handbags' THEN 'Handbags'
+    WHEN 'shoes' THEN 'Shoes'
+    WHEN 'clothes' THEN 'Clothes'
+    WHEN 'jewellery' THEN 'Jewellery'
+    WHEN 'jewelry' THEN 'Jewellery'
+    WHEN 'gifts' THEN 'Gifts'
+    ELSE TRIM(category)
+  END
+`).run();
+
 
 const adminUser = process.env.ADMIN_USERNAME || "admin";
 const adminPass = process.env.ADMIN_PASSWORD || "ChangeMe123!";
