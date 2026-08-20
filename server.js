@@ -178,14 +178,55 @@ app.get("/admin", auth, (req, res) => {
   res.render("admin", { storeName: STORE_NAME, products, categories });
 });
 
-app.post("/admin/products", auth, upload.single("image"), (req, res) => {
-  const { name, category, price, description } = req.body;
-  if (!name || !category || !req.file) return res.status(400).send("Name, category and image are required.");
-  db.prepare("INSERT INTO products(name,category,price,description,image) VALUES (?,?,?,?,?)")
-    .run(name, category, Number(price || 0), description || "", "/uploads/" + req.file.filename);
-  res.redirect("/admin");
-});
+app.post("/admin/products", auth, upload.single("image"), async (req, res, next) => {
+  try {
+    const { name, category, price, description } = req.body;
 
+    if (!name || !category || !req.file) {
+      return res.status(400).send("Name, category and image are required.");
+    }
+
+    const fileBuffer = fs.readFileSync(req.file.path);
+
+    const fileName = `${Date.now()}-${req.file.filename}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(fileName, fileBuffer, {
+        contentType: req.file.mimetype,
+        upsert: false
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from("product-images")
+      .getPublicUrl(fileName);
+
+    const imageUrl = publicUrlData.publicUrl;
+
+    db.prepare(`
+      INSERT INTO products(name, category, price, description, image)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      name,
+      category,
+      Number(price || 0),
+      description || "",
+      imageUrl
+    );
+
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    res.redirect("/admin");
+  } catch (err) {
+    next(err);
+  }
+});
 app.post("/admin/products/:id/edit", auth, upload.single("image"), (req, res) => {
   const old = db.prepare("SELECT * FROM products WHERE id=?").get(req.params.id);
   if (!old) return res.status(404).send("Product not found.");
