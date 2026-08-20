@@ -1,24 +1,46 @@
 
-require("dotenv").config();
-const express = require("express");
+require("dotenv").config({ path: ".env.local" });const express = require("express");
 const session = require("express-session");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
 const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
-
-const app = express();
+const { createClient } = require("@supabase/supabase-js");
+const ws = require("ws");
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SECRET_KEY,
+    {
+        realtime: {
+            transport: ws
+        }
+    }
+);const app = express();
 const PORT = process.env.PORT || 3000;
 const STORE_NAME = process.env.STORE_NAME || "Veelord Collection & Gift Store";
 const WHATSAPP_NUMBER = (process.env.WHATSAPP_NUMBER || "2349130051086").replace(/\D/g, "");
 
-const dataDir = path.join(__dirname, "data");
+const dataDir = process.env.DATA_DIR || path.join(__dirname, "data");
 const uploadDir = path.join(__dirname, "public", "uploads");
 fs.mkdirSync(dataDir, { recursive: true });
 fs.mkdirSync(uploadDir, { recursive: true });
 
 const db = new Database(path.join(dataDir, "store.db"));
+db.prepare(`
+  UPDATE products
+  SET category = CASE LOWER(TRIM(category))
+    WHEN 'watches' THEN 'Watches'
+    WHEN 'flowers' THEN 'Flowers'
+    WHEN 'handbags' THEN 'Handbags'
+    WHEN 'shoes' THEN 'Shoes'
+    WHEN 'clothes' THEN 'Clothes'
+    WHEN 'jewellery' THEN 'Jewellery'
+    WHEN 'jewelry' THEN 'Jewellery'
+    WHEN 'gifts' THEN 'Gifts'
+    ELSE TRIM(category)
+  END
+`).run();
 db.pragma("journal_mode = WAL");
 db.exec(`
 CREATE TABLE IF NOT EXISTS products (
@@ -83,21 +105,55 @@ function waLink(product) {
   return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
 }
 
-app.get("/", (req, res) => {
-  const category = req.query.category || "";
-  const q = (req.query.q || "").trim();
-  let sql = "SELECT * FROM products";
-  const params = [];
-  const where = [];
-  if (category) { where.push("category=?"); params.push(category); }
-  if (q) { where.push("(name LIKE ? OR description LIKE ?)"); params.push(`%${q}%`, `%${q}%`); }
-  if (where.length) sql += " WHERE " + where.join(" AND ");
-  sql += " ORDER BY id DESC";
-  const products = db.prepare(sql).all(...params).map(p => ({...p, wa: waLink(p)}));
-  const categories = db.prepare("SELECT DISTINCT category FROM products ORDER BY category").all().map(x => x.category);
-  res.render("index", { storeName: STORE_NAME, products, categories, activeCategory: category, q });
-});
+app.get("/", async (req, res, next) => {
+  try {
+    const category = req.query.category || "";
+    const q = (req.query.q || "").trim();
 
+    let productQuery = supabase
+      .from("products")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (category) {
+      productQuery = productQuery.eq("category", category);
+    }
+
+    if (q) {
+      productQuery = productQuery.or(
+        `name.ilike.%${q}%,description.ilike.%${q}%`
+      );
+    }
+
+    const { data: products, error: productsError } = await productQuery;
+
+    if (productsError) throw productsError;
+
+    const { data: categoryRows, error: categoriesError } = await supabase
+      .from("products")
+      .select("category")
+      .order("category");
+
+    if (categoriesError) throw categoriesError;
+
+    const categories = [
+      ...new Set((categoryRows || []).map(row => row.category))
+    ];
+
+    res.render("index", {
+      storeName: STORE_NAME,
+      products: (products || []).map(p => ({
+        ...p,
+        wa: waLink(p)
+      })),
+      categories,
+      activeCategory: category
+    });
+
+  } catch (err) {
+    next(err);
+  }
+});
 app.get("/admin/login", (req, res) => {
   if (req.session.adminId) return res.redirect("/admin");
   res.render("login", { error: null, storeName: STORE_NAME });
